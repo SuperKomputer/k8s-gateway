@@ -25,35 +25,38 @@ import (
 	"strconv"
 	"strings"
 
+	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
+	apiclient "github.com/superkomputer/apiclient/client"
+	"github.com/superkomputer/apiclient/client/operations"
+	"github.com/superkomputer/apiclient/models"
+
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
-
-// EXTERNAL_IPS=35.193.46.59,35.224.65.55,35.194.59.102
-// K8S_MASTER=https://35.225.177.24
-// KUBE_CONFIG=/var/lib/kube-proxy/kubeconfig
-// SK_API=https://api.superkomputer.io/api
-// SK_USERID=awpodkaopwka
-
-// CREATE NECESSARY CONTEXTS
-// REGISTER ITSELF config.clusters.name, contexts, external IPs
 
 const namespacePrefix = "sk-ns"
 const envExternalIps = "K8S_EXTERNALIPS"
-const skAPI = "SK_API"
-const skUserid = "SK_USERID"
+const envK8sAPI = "K8S_API"
+const envK8sUsername = "K8S_USERNAME"
+const envK8sPassword = "K8S_PASSWORD"
+const envK8sClusterID = "K8S_CLUSTERID"
+const envSkAPI = "SK_API"
+const envSkUserid = "SK_USERID"
 
 type skConfig struct {
-	ExternalIps []string
-	API         string
-	UserID      string
-	Namespaces  []string
+	ExternalIps  []string
+	API          string
+	UserID       string
+	Namespaces   []string
+	K8sAPI       string
+	K8sUsername  string
+	K8sPassword  string
+	K8sClusterID string
 }
 
 func main() {
@@ -85,7 +88,34 @@ func main() {
 	c.ExternalIps = getExternalIps()
 	c.API = getAPI()
 	c.UserID = getUserID()
+	c.K8sAPI = getK8sAPI()
+	c.K8sUsername = getK8sUsername()
+	c.K8sPassword = getK8sPassword()
+	c.K8sClusterID = getK8sClusterID()
+	//namespaces
+	//username
+	//password
 	fmt.Println(fmt.Sprintf("configuration is set as %+v", c))
+
+	transport := httptransport.New(getAPI(), "/v1", []string{"http"})
+	client := apiclient.New(transport, strfmt.Default)
+	// resp, err := client.Operations.GetCluster(operations.NewGetClusterParams())
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// fmt.Printf("%#v\n", resp.Payload)
+
+	status := "OK"
+	cp := operations.NewCreateClusterParams()
+	cp.Cluster = &models.Cluster{
+		NumMasters: 1,
+		NumWorkers: 3,
+		Status:     &status,
+		URL:        strfmt.URI(c.K8sAPI),
+		ClusterID:  &c.K8sClusterID,
+	}
+
+	client.Operations.CreateCluster(cp)
 }
 
 func getExternalIps() []string {
@@ -94,11 +124,27 @@ func getExternalIps() []string {
 }
 
 func getAPI() string {
-	return os.Getenv(skAPI)
+	return os.Getenv(envSkAPI)
+}
+
+func getK8sAPI() string {
+	return os.Getenv(envK8sAPI)
+}
+
+func getK8sUsername() string {
+	return os.Getenv(envK8sUsername)
+}
+
+func getK8sPassword() string {
+	return os.Getenv(envK8sPassword)
+}
+
+func getK8sClusterID() string {
+	return os.Getenv(envK8sClusterID)
 }
 
 func getUserID() string {
-	return os.Getenv(skUserid)
+	return os.Getenv(envSkUserid)
 }
 
 func getNamespaces(clientset *kubernetes.Clientset) ([]v1.Namespace, error) {
