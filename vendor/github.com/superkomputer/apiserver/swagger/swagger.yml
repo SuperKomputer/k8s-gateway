@@ -1,0 +1,492 @@
+swagger: '2.0'
+info:
+  version: 0.1.0
+  title: RESTful API for Superkomputer
+  description: API for SuperKomputer
+  contact:
+    name: VMware Inc
+    email: fanz@vmware.com
+
+basePath: /v1
+
+consumes:
+  - application/json
+
+produces:
+  - application/json
+
+schemes:
+  - http
+  
+responses:
+   errorClusterNameConflict:
+    description: The provided cluster name already exists
+    schema:
+      $ref: '#/definitions/error'
+
+   errorClusterNotFound:
+    description: The cluster was not found
+    schema:
+      $ref: '#/definitions/error'
+
+   errorUserNotFound:
+    description: The user was not found
+    schema:
+      $ref: '#/definitions/error'
+
+   errorUserExists:
+    description: The user with that username already exists
+    schema:
+      $ref: '#/definitions/error'
+
+   errorAccountNotFound:
+    description: The account was not found
+    schema:
+      $ref: '#/definitions/error'
+  
+   errorInvalidRequest:
+    description: The request is not valid
+    schema:
+      $ref: '#/definitions/error'
+
+   errorDefault:
+    description: Error
+    schema:
+      $ref: '#/definitions/error'
+
+paths:
+  /login:
+    post:
+      operationId: login
+      summary: log in to the SuperKomputer Service
+      description: |
+        ## create a token which is used to provide identity
+      parameters:
+      - name: body
+        in: body
+        schema:
+          $ref: "#/definitions/userCredentials"
+      responses:
+        200:
+          description: successful login 
+          schema:
+            $ref: "#/definitions/jwttoken"
+
+  /users:
+    get:
+      operationId: listUsers
+      summary: get a list of known users
+      responses:
+        200:
+          description: 200 response with the list of known users
+          schema:
+           type: array
+           items:
+             $ref: '#/definitions/user'
+        default:
+          $ref: "#/responses/errorDefault"
+    post:
+      operationId: createUser
+      summary: creates a user
+      description: creates a user
+      parameters:
+        - name: user
+          description: the username of user to be created
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/user'
+      responses:
+        202:
+          description: create user task has been accepted
+        409:
+          $ref: '#/responses/errorUserExists'
+        default:
+          $ref: '#/responses/errorDefault'
+         
+  /users/{username}:
+    get:
+      operationId: getUser
+      summary: get details information of a user with given username
+      description: get details information of a user with given username
+      parameters:
+        - name: username
+          description: the name of a user
+          type: string
+          in: path
+          required: true
+      responses:
+        200:
+          description: 200 response with the user information
+          schema:
+              $ref: "#/definitions/user"
+        404:
+          $ref: "#/responses/errorUserNotFound"
+        default:
+          $ref: "#/responses/errorDefault"
+    delete:
+      operationId: deleteUser
+      summary: deletes a user
+      description: deletes a user with the given name
+      parameters:
+        - name: username
+          description: the username to be deleted
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+      responses:
+        202:
+          description: delete user task has been accepted
+        404:
+          $ref: '#/responses/errorUserNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+    put:
+      operationId: updateUser
+      summary: updates a user
+      description: updates a user with the given update config
+      parameters:
+        - name: username
+          description: the username to be updated
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+        - name: user
+          description: the new config of the user to be updated
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/user"
+      responses:
+        202:
+          description: update user task has been accepted
+        304:
+          description: no update required
+        404:
+          $ref: '#/responses/errorUserNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+
+  /users/{username}/clusters:
+    get:
+      operationId: fetchUserClusters
+      summary: fetch the list of using clusters of user with given username
+      parameters:
+        - name: username
+          description: the name of a user
+          type: string
+          in: path
+          required: true
+      responses:
+        200:
+          description: 200 response with the list of using clusters of user
+          schema:
+           type: array
+           items:
+             $ref: '#/definitions/cluster'
+        default:
+          $ref: "#/responses/errorDefault"
+
+  /clusters:  # cluster
+    get:
+      operationId: listClusters
+      summary: get a list of all clusters
+      description: get a list of all clusters managed by the SuperKomputer
+      responses:
+        200:
+          description: 200 response with the list of clusters
+          schema:
+           type: array
+           items:
+             $ref: '#/definitions/cluster'
+        default:
+          $ref: "#/responses/errorDefault"
+
+    post:
+      operationId: createCluster
+      summary: creates a cluster
+      description: creates a cluster
+      parameters:
+        - name: cluster
+          description: the information of the cluster to be created # simulate cluster
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/cluster'
+      responses:
+        202:
+          description: create cluster task has been accepted
+        409:
+          $ref: '#/responses/errorClusterNameConflict'  # unique cluster name, should be valid for use in dns names
+        default:
+          $ref: '#/responses/errorDefault'
+  
+  /clusters/{clusterId}:
+    put:
+      operationId: updateCluster
+      summary: updates a cluster
+      description: updates a cluster with the given update config
+      parameters:
+        - name: clusterId
+          description: the clusterId to be updated
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+        - name: cluster
+          description: the new config of the cluster to be updated
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/cluster'
+      responses:
+        202:
+          description: update cluster task has been accepted
+        304:
+          description: no update required
+        404:
+          $ref: '#/responses/errorClusterNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+
+    delete:
+      operationId: deleteCluster
+      summary: deletes a cluster
+      description: deletes a cluster with the given name
+      parameters:
+        - name: clusterId
+          description: the clusterId to be deleted
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+      responses:
+        202:
+          description: delete cluster task has been accepted
+        404:
+          $ref: '#/responses/errorClusterNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+    
+    get:
+      operationId: getCluster
+      summary: get a cluster
+      description: get a cluster details with clusterId
+      parameters:
+        - name: clusterId
+          description: the clusterId to be queried
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+      responses:
+        200:
+          description: 200 response with a cluster details
+          schema:
+            $ref: '#/definitions/cluster'
+        404:
+          $ref: '#/responses/errorClusterNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+
+
+  /clusters/{clusterId}/account/{username}:
+    get:
+      operationId: getAccount
+      summary: get payable account of a user on cluster
+      description: get payable account of a user on cluster
+      parameters:
+        - name: clusterId
+          description: the clusterId to be queried
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+        - name: username
+          description: the name for the user that gathered the account
+          type: string
+          in: path
+          required: true
+      responses:
+        200:
+          description: 200 response with account information
+          schema:
+            $ref: '#/definitions/account'
+        404:
+          $ref: '#/responses/errorAccountNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+    delete:
+      operationId: deleteAccount
+      summary: deletes payable account of a user on cluster
+      description: deletes payable account of a user on cluster
+      parameters:
+        - name: clusterId
+          description: the clusterId to be queried
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+        - name: username
+          description: the name for the user that gathered the account
+          type: string
+          in: path
+          required: true
+      responses:
+        202:
+          description: delete account task has been accepted
+        404:
+          $ref: '#/responses/errorAccountNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+    post:
+      operationId: createAccount
+      summary: creates payable account of a user on cluster
+      description: creates payable account of a user on cluster
+      parameters:
+        - name: clusterId
+          description: the clusterId to be queried
+          in: path
+          required: true
+          type: string
+          x-nullable: false
+        - name: username
+          description: the name for the user that gathered the account
+          type: string
+          in: path
+          required: true
+        - name: account
+          description: the payable account of a user on cluster
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/account'
+      responses:
+        202:
+          description: create payable account of a user on cluster has been accepted
+        404:
+          $ref: '#/responses/errorClusterNotFound'
+        default:
+          $ref: '#/responses/errorDefault'
+
+definitions:
+  error:
+    description: |
+      the default error model for all the error responses coming from the SuperKomputer
+    type: object
+    required:
+      - message
+    properties:
+      code:
+        type: integer
+        format: int64
+        description: The error code
+      message:
+        description: The error message
+        type: string
+
+  cluster:   # cluster object
+    type: object
+    required:
+    - clusterId
+    - status
+    properties:
+      clusterId:
+        type: string
+        pattern: '^[a-zA-Z](([-0-9a-zA-Z]+)?[0-9a-zA-Z])?(\.[a-zA-Z](([-0-9a-zA-Z]+)?[0-9a-zA-Z])?)*$'
+        description: the clusterId, should be valid for use in dns names
+        minLength: 3
+        maxLength: 63
+      status:
+        description: the status of the cluster
+        type: string
+      numMasters:
+        description: the number of master created for this kubernetes cluster
+        type: integer
+        format: int32
+      numWorkers:
+        description: the number of workers created for this kubernetes cluster
+        type: integer
+        format: int32
+      url:
+        description: the url to access the kubernetes cluster
+        type: string
+        format: uri
+
+  user:
+    description: An object for user, username is unique
+    type: object
+    required:
+    - username
+    properties:
+      username:
+        description: the name of the user
+        type: string
+      id:
+        description: the id of the user
+        type: integer
+        format: int32
+      firstname:
+        description: the first name of user
+        type: string
+      lastname:
+        description: the last name of user
+        type: string
+      email:
+          description: the email of user
+          type: string
+  
+  account:  ## TODO
+    description: the payable account information
+    type: object
+    required:
+      - username
+      - clusterId
+      - id
+    properties:
+      clusterId:
+        type: string
+        pattern: '^[a-zA-Z](([-0-9a-zA-Z]+)?[0-9a-zA-Z])?(\.[a-zA-Z](([-0-9a-zA-Z]+)?[0-9a-zA-Z])?)*$'
+        description: the cluster name, should be valid for use in dns names
+        minLength: 3
+        maxLength: 63
+      username:
+        type: string
+      balance:
+        type: string
+      id:
+        type: integer
+        format: int32
+   
+  userCredentials:
+    description: credentials for logging in to SuperKomputer
+    type: object
+    properties:
+      username:
+        type: string
+      password:
+        type: string
+        format: password
+
+  jwttoken:
+    type: object
+    description: a JWT token to carry identity information # credentials TODO
+    additionalProperties: true
+    properties:
+      access_token:
+        type: string
+      token_type:
+        type: string
+        default: bearer
+      refresh_token:
+        type: string
+      expires_in:
+        type: integer
+        format: int64
+      scope:
+        type: array
+        items:
+          type: string
+
